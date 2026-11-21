@@ -1,7 +1,9 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Check whether Octane Fast Start is working after an Octane (or Blender) update.
 
 Runs a separate headless Blender with your normal settings (your open Blender
-is not touched) and reports:
+is not touched; set BLENDER_USER_RESOURCES to a folder to use a scratch
+profile instead) with the REAL Octane add-on, and reports:
   * whether the fix is active
   * how long a New File takes (should be ~0.01 s with the fix, ~8 s without)
   * whether the Octane methods the fix relies on still exist

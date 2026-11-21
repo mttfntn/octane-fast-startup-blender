@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Octane Fast Start - unofficial; not affiliated with or endorsed by OTOY Inc.
 """Octane Fast Start  (Blender startup script)
 
 Problem: when the Octane Server is not running, the Octane add-on still sends
@@ -34,6 +36,8 @@ import sys
 import threading
 import time
 
+__version__ = "1.0.0"      # release version; the vX.Y.Z git tag must match it
+SUPPORTED_BLENDER = "5.3"  # the Blender version this release is tested with
 TARGET = "octane.core.client"  # Octane module that defines OctaneBlender
 
 # Shared state. Written by the main thread and by the _watch() thread; each
