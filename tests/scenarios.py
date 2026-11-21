@@ -55,6 +55,11 @@ def set_prefs(bpy, address="127.0.0.1", port=DEFAULT_PORT):
 class Listener:
     def __init__(self, port):
         self.sock = socket.socket()
+        if os.name != "nt":
+            # Linux keeps a just-closed port in TIME_WAIT; without this the next
+            # scenario cannot bind 50051 ("Address already in use"). On Windows
+            # SO_REUSEADDR would allow stealing a port in use, so it is not set there.
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(("127.0.0.1", port))
         self.sock.listen(16)
         self.port = self.sock.getsockname()[1]

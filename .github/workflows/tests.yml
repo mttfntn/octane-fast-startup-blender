@@ -23,8 +23,8 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"   # the Python bundled with Blender 5.3
       - run: python -m unittest discover -s tests -v
@@ -33,11 +33,11 @@ jobs:
     name: Blender 5.3 integration test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache Blender
         id: cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/blender
           key: blender-${{ env.BLENDER_VERSION }}-linux-x64
@@ -81,10 +81,8 @@ jobs:
     name: build package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      # Only checks that the zip builds. Nothing is uploaded: the release
+      # workflow attaches the zip to the GitHub release instead, so no
+      # artifact storage is used.
       - run: python3 tools/build.py
-      - uses: actions/upload-artifact@v4
-        with:
-          name: octane-fast-start-zip
-          path: dist/*.zip
-          retention-days: 3

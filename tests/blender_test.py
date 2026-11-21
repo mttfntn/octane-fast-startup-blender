@@ -59,6 +59,8 @@ def blender(args, env):
 
 def listener():
     s = socket.socket()
+    if os.name != "nt":  # see scenarios.Listener: TIME_WAIT on Linux
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind(("127.0.0.1", 50051))
     s.listen(16)
 
