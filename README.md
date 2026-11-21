@@ -1,158 +1,104 @@
 # Octane Fast Start
 
-Makes Blender start in ~2–3 s instead of ~20 s, and open/new files in ~0.01 s
-instead of ~8 s, **while keeping the Octane add-on enabled**.
+[![Blender](https://img.shields.io/badge/Blender-5.3-orange?logo=blender&logoColor=white)](https://www.blender.org/download/)
+[![Release](https://img.shields.io/badge/release-v1.0.0-blue)](https://github.com/mttfntn/octane-fast-startup-blender/releases)
+[![tests](https://github.com/mttfntn/octane-fast-startup-blender/actions/workflows/tests.yml/badge.svg)](https://github.com/mttfntn/octane-fast-startup-blender/actions/workflows/tests.yml)
+[![License](https://img.shields.io/badge/license-GPL--3.0--or--later-green)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.13-blue?logo=python&logoColor=white)](startup/octane_fast_start.py)
+[![Works with](https://img.shields.io/badge/works%20with-OctaneRender%20for%20Blender%20(OTOY)-lightgrey)](https://home.otoy.com/render/octane-render/)
 
-| | Without | With |
+A Blender startup script that makes Blender start and open files quickly
+**while the Octane add-on stays enabled but the Octane Server is not running**.
+
+When no Octane Server is running, the Octane add-on still sends requests to it
+at startup and on **every** File > New / Open, and each request waits for a
+connection timeout. Octane Fast Start checks in about 1 ms whether the server
+port is open and skips those requests while it isn't. When the server comes
+online, the skipped start-up work runs automatically. Octane's own files are
+never modified.
+
+> Unofficial. Not affiliated with or endorsed by OTOY Inc. OctaneRender is a
+> trademark of OTOY Inc. This repository contains no OTOY code.
+
+## Measurements
+
+Blender 5.3.0, Octane Server not running, headless Blender in a scratch
+profile with only the Octane add-on enabled (`check.py`, 2026-11-21):
+
+| Octane add-on | Startup, without → with | File > New, without → with |
 |---|---|---|
-| Blender startup | ~18–22 s | ~2.7 s |
-| File > New / Open | ~8 s | ~0.01 s |
-| Octane enabled | yes | yes |
+| 31.7.0 | ~28 s → ~2.0 s | 8.1 s → 0.01 s |
+| 32.2.0 alpha | ~5.3 s → ~2.1 s | 0.79 s → 0.01 s |
 
-Measured 2026-11-18 on Blender 5.3.0 + Octane add-on client (OctaneServer Prime 31.12).
+Octane 32.2 added its own short server probe, so the gain is smaller there
+but still about 2.5× at startup and 80× per file load. In a full user setup
+with the 31.7 add-on (GUI Blender, many add-ons), startup went from ~20 s to ~2.7 s.
 
-Version history:
-- 2026-11-18: built and tested with OctaneBlender add-on **31.7.0**.
-- 2026-11-18: upgraded to OctaneBlender add-on **32.2.0 alpha** — fix worked
-  unchanged (`check.py`: OK, startup 2.9 s, New File 0.01 s).
-  Old add-on backed up to `%APPDATA%\Blender Foundation\Blender\5.3\octane_backup_31.7.0`.
-  To roll back: close Blender, delete `scripts\addons\octane`, move the backup
-  folder back to `scripts\addons\octane`.
+## Requirements
 
----
+- **Blender 5.3** (the only version tested; see [HANDOVER.md](HANDOVER.md) to add more)
+- The OctaneRender for Blender add-on (tested with 31.7.0 and 32.2.0 alpha)
+- Windows is what it was built and measured on; the script itself is
+  plain Python (CI runs the unit tests on Linux and Windows, and the Blender
+  test on Linux with a stand-in for Octane)
 
-## 1. The problem (how it was found)
+## Install
 
-1. **Compared startup times** (headless, `blender -b`):
-   factory settings = 1.0 s, user settings = 18–22 s → something in the user setup.
-2. **Timed each add-on** by enabling them one by one in a factory-startup Blender:
-   Octane = 4.9 s, all others together < 1 s.
-3. **Disabled only Octane** (in a *copy* of the config, via `BLENDER_USER_CONFIG`):
-   startup dropped to 1.9 s → Octane is ~95 % of the lag.
-4. **Profiled Octane** with `cProfile` while enabling it and loading a file.
-   The Python code is fast; all the time is in three native calls into
-   `octane_blender.pyd`, each waiting ~4 s:
+**Option A: from a release zip (recommended)**
 
-   | When | Call | Time |
-   |---|---|---|
-   | Add-on load (startup) | `OctaneBlender.utils_function(API_START)` | ~4 s |
-   | **Every** file load | `OctaneBlender.reset_render()` (via `reset_resource_cache`) | ~4–5 s |
-   | **Every** file load | `utils_function(UPDATE_OCIO_SETTINGS)` (via `ocio.update_ocio_info`) | ~3–4 s |
+1. Download `octane-fast-start-X.Y.Z.zip` from
+   [Releases](https://github.com/mttfntn/octane-fast-startup-blender/releases)
+   and unzip it somewhere permanent, e.g. `Documents\Blender\octane-fast-start`.
+2. In Blender: **Edit > Preferences > File Paths > Script Directories > Add**,
+   and choose the unzipped `octane-fast-start` folder (the one that contains `startup\`).
+3. Save preferences (if auto-save is off) and **restart Blender**.
 
-5. **Root cause:** the Octane add-on is a *client* that talks over gRPC to the
-   **Octane Server** at `localhost:50051`. When the server is not running, every
-   request waits for a connection timeout (~4 s) before failing. Octane already
-   handles the failure correctly — it just takes 4 s to find out.
+To update, replace the folder's contents with a newer release. Using a
+`git clone` of this repo as the script directory works the same way.
 
-## 2. How the fix works
+**Option B: copy one file**
 
-`octane_fast_start.py` is a Blender **startup script** (it lives in
-`scripts/startup/`, which Blender loads *before* add-ons).
+Copy `startup/octane_fast_start.py` to
+`%APPDATA%\Blender Foundation\Blender\5.3\scripts\startup\` and restart Blender.
+Repeat for each new Blender version folder.
 
-1. It installs an **import hook** (`sys.meta_path` finder). The moment Octane
-   imports its module `octane.core.client`, the hook wraps three methods of the
-   `OctaneBlender` class:
-   `utils_function`, `reset_render`, `update_server_settings`.
-2. Each wrapper first asks: **is anything listening on the server port?**
-   (`socket.create_connection(("127.0.0.1", 50051), timeout=0.05)` — instant
-   when the server runs, ≤50 ms when it doesn't).
-   - Server **offline** → skip the call and return what a failed call returns
-     (`""` or `None`). Takes ~0 s instead of ~4 s.
-   - Server **online** → call the original method, unchanged.
-3. A **background thread** re-checks the port every 2 s, so the check never
-   blocks the UI.
-4. A **Blender timer** watches for the server coming online (2 checks in a row,
-   so it doesn't hit a server that is still starting). Then it runs the work that
-   was skipped: `API_START`, `ocio.update_ocio_info()`,
-   `resource_cache.reset_resource_cache()`.
+**Check it works:** Window > Toggle System Console shows
+`[Octane Fast Start] active - Octane Server is ...` at startup. Or run:
 
-Nothing inside the Octane add-on folder is changed, so **Octane updates don't
-overwrite the fix**, and your scenes/settings are never touched.
-
-## 3. Files
-
-| File | Purpose |
-|---|---|
-| `octane_fast_start.py` | The fix (startup script) |
-| `check.py` | One-command test: is the fix active, how fast is New File, do the Octane methods still exist |
-| `README.md` | This file |
-
-## 4. Install / uninstall
-
-Install: copy `octane_fast_start.py` to
-```
-%APPDATA%\Blender Foundation\Blender\5.3\scripts\startup\
-```
-then restart Blender. The system console shows `[Octane Fast Start] active ...`.
-
-For a **new Blender version** (e.g. 5.4) copy it into that version's
-`...\Blender\5.4\scripts\startup\` folder too.
-
-Uninstall: delete that file and restart Blender.
-
-## 5. After an Octane update — what to do
-
-1. Restart Blender, then run:
-   ```
-   python check.py
-   ```
-   (pass the blender.exe path as an argument if Blender moved).
-2. `RESULT: OK` → nothing to do.
-3. `NOT WORKING` → look at which line failed:
-   - `patched False` or `octane_import_error` → Octane renamed/moved the module
-     `octane/core/client.py` or the class `OctaneBlender`. Update `TARGET` and
-     the class name in `octane_fast_start.py`.
-   - `method ... MISSING` → a wrapped method was renamed. Find the new name in
-     `octane/core/client.py`.
-   - `new_file_seconds` still ~8 s → Octane added a **new** slow server call.
-     Profile it again (see the prompt below) and wrap that method too.
-4. If an update breaks something, delete the startup file — Blender is then
-   exactly as before (just slow again).
-
-The Octane add-on lives at
-`...\Blender\5.3\scripts\addons\octane\` (key files: `core/client.py`,
-`utils/ocio.py`, `core/resource_cache.py`, `handlers.py`).
-
-## 6. Reusable prompt (for Claude, next time Octane updates)
-
-Copy everything in the box into a new Claude Code session opened in this folder:
-
-```text
-I use Blender with the Octane add-on (client that talks to Octane Server over
-gRPC on localhost:50051). I have a startup script "Octane Fast Start"
-(octane_fast_start/octane_fast_start.py, installed in
-%APPDATA%\Blender Foundation\Blender\<version>\scripts\startup\) that makes
-Blender start fast when Octane Server is NOT running. It uses a sys.meta_path
-import hook to wrap OctaneBlender.utils_function / reset_render /
-update_server_settings in octane.core.client: if the server port is not
-listening (50 ms socket probe, refreshed by a background thread) the call is
-skipped; when the server comes online a timer runs API_START,
-ocio.update_ocio_info() and resource_cache.reset_resource_cache().
-Read octane_fast_start/README.md for the full background.
-
-Octane just published an update. Please:
-1. Run `python octane_fast_start/check.py` and tell me the result.
-2. If it is not OK, read the new Octane add-on code in
-   %APPDATA%\Blender Foundation\Blender\<version>\scripts\addons\octane\
-   (core/client.py, utils/ocio.py, core/resource_cache.py, handlers.py) and find
-   what changed (renamed module/class/methods, new server calls).
-3. Profile Octane headlessly with cProfile (enable the add-on + bpy.ops.wm.read_homefile())
-   in a separate `blender -b` process using a COPY of my config
-   (BLENDER_USER_CONFIG pointing to a temp copy of userpref.blend/startup.blend).
-   Never run tests inside my open Blender session.
-4. Update octane_fast_start.py so the slow server calls are skipped again
-   when the server is offline, and still go through unchanged when it is online.
-5. Test in the config copy: startup time, New File time, and the
-   "server comes online" path (fake listener on the port, stubbed Octane calls).
-6. Install the updated file into scripts/startup, run check.py again,
-   and update README.md (measurements, date, versions).
-Do not modify the Octane add-on's own files.
+```powershell
+python check.py
 ```
 
-## 7. Optional alternative
+(`check.py` takes the path to `blender.exe` as an argument if Blender is not in
+`C:\Program Files\Blender Foundation\Blender 5.3\`.) `RESULT: OK` means it works.
 
-If you **always** start OctaneServer (`C:\Program Files\OctaneServerPrime31.12\OctaneServer.exe`)
-before Blender, the fix simply passes every call through to Octane unchanged.
-(Not yet measured: how fast Octane's calls are when the real server is running.
-The "server comes online" path was tested with a stand-in listener, not the
-real OctaneServer — do one Octane render to confirm.)
+**Uninstall:** remove the script directory from Preferences (option A) or
+delete the copied file (option B), then restart Blender.
+
+## After an Octane update
+
+Run `python check.py`. If it says `NOT WORKING`, Octane renamed something the
+script relies on (`octane.core.client.OctaneBlender` and its methods
+`utils_function`, `reset_render`, `update_server_settings`). Until it is fixed,
+remove the script: Blender then behaves exactly as before, only slower.
+[HANDOVER.md](HANDOVER.md) explains how to adapt the script.
+
+## How it works (short)
+
+1. Blender loads startup scripts **before** add-ons. The script installs an
+   import hook that patches `octane.core.client` the moment Octane imports it.
+2. Three `OctaneBlender` methods are wrapped. When nothing is listening on the
+   server port (taken from Octane's preferences, default `127.0.0.1:50051`), the
+   call is skipped and returns what a failed call returns. When the port is
+   open, the original method runs, unchanged.
+3. A background thread re-checks the port every 2 s. When the server has been up
+   for two checks in a row, a Blender timer runs the skipped start-up work.
+
+## Documentation
+
+- [HANDOVER.md](HANDOVER.md): full guide for maintainers (code layout, tests, releases, limits)
+- [AGENTS.md](AGENTS.md): compact notes for AI coding assistants
+
+## License
+
+[GPL-3.0-or-later](LICENSE), the same license family as Blender.
