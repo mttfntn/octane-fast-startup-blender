@@ -1,0 +1,45 @@
+name: release
+
+# Push an annotated tag vX.Y.Z -> run all tests -> build the zip -> publish a
+# GitHub release with the zip attached and the tag message as release notes.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  release:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # actions/checkout leaves the tag as a lightweight ref to the commit;
+      # fetch the tag object itself so its message (the release notes) is available.
+      - name: Fetch the tag object
+        run: git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+
+      - name: Release notes from the tag message
+        run: |
+          if [ "$(git cat-file -t "$GITHUB_REF_NAME")" != "tag" ]; then
+            echo "::error::$GITHUB_REF_NAME is not an annotated tag (use git tag -a)"; exit 1
+          fi
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > notes.md
+          cat notes.md
+
+      - name: Build (tag must match __version__)
+        run: python3 tools/build.py --expect-version "$GITHUB_REF_NAME"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+            --title "Octane Fast Start $GITHUB_REF_NAME" --notes-file notes.md --verify-tag

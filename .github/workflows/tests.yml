@@ -1,0 +1,90 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  BLENDER_VERSION: "5.3.0"
+  BLENDER_SHA256: "dacb8264197a3f7fda6001285a5a506fc97ee943881261c2c3bd63c882f22e05"
+
+jobs:
+  unit:
+    name: unit tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"   # the Python bundled with Blender 5.3
+      - run: python -m unittest discover -s tests -v
+
+  blender:
+    name: Blender 5.3 integration test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Blender
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/blender
+          key: blender-${{ env.BLENDER_VERSION }}-linux-x64
+
+      - name: Download Blender (retries, official mirrors, checksum)
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          series="${BLENDER_VERSION%.*}"
+          file="blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          ok=0
+          for base in https://download.blender.org/release \
+                      https://mirrors.ocf.berkeley.edu/blender/release \
+                      https://ftp.nluug.nl/pub/graphics/blender/release; do
+            echo "Trying $base"
+            if curl -fL --retry 5 --retry-delay 10 --retry-all-errors --connect-timeout 30 \
+                 -o "$file" "$base/Blender${series}/${file}" \
+               && echo "${BLENDER_SHA256}  ${file}" | sha256sum -c -; then
+              ok=1; break
+            fi
+            echo "Download from $base failed, trying the next mirror"
+            rm -f "$file"
+          done
+          [ "$ok" = 1 ] || { echo "All mirrors failed"; exit 1; }
+          mkdir -p ~/blender
+          tar -xJf "$file" -C ~/blender --strip-components=1
+          rm "$file"
+
+      - name: Install Blender's system libraries
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libx11-6 libxi6 libxxf86vm1 libxfixes3 libxrender1 \
+            libxkbcommon0 libsm6 libice6 libgl1 libegl1 libwayland-client0 libwayland-cursor0 \
+            libwayland-egl1 libdecor-0-0
+
+      - run: ~/blender/blender --version
+      - run: python3 tests/blender_test.py ~/blender/blender
+
+  build:
+    name: build package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: octane-fast-start-zip
+          path: dist/*.zip
+          retention-days: 3
