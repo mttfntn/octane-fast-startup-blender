@@ -63,8 +63,8 @@ State lives in module dict `_state`; `check.py` reads `_state["up"]` and `_state
    with the tag message as notes and the zip attached. Check the Actions run.
 
 ## Git setup
-- Remote `origin` = https://github.com/mttfntn/octane-fast-startup-blender (private), branch `main`.
+- Remote `origin` = https://github.com/mttfntn/octane-fast-startup-blender (public), branch `main`.
 - `.gitattributes`: LF line endings. `dist/` and `__pycache__/` are ignored.
 - Commit history starts with the original files (`e67912f`), so `git show e67912f:octane_fast_start.py`
   is the pre-handover script.
-- Repo is private → badges are static except the GitHub Actions tests badge.
+- Repo is public → release, license and language badges are live; the Blender, Python and "works with" badges are static.

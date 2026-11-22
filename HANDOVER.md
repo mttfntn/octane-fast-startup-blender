@@ -123,8 +123,7 @@ Expected: unit tests 8/8 OK; `compare.py` all `same` except
 ## 7. How to make a release
 
 1. Set `__version__` in `startup/octane_fast_start.py` (e.g. `1.0.1`).
-2. Update the **release badge** in `README.md` by hand (the repo is private, so
-   the badges are static; only the tests badge is live).
+2. The release, license and language badges in `README.md` update themselves. Update the Blender badge only if the supported Blender version changed.
 3. Update the measurements and tested versions in `README.md` if they changed.
 4. Commit, then create an **annotated** tag. Its message becomes the release notes:
    ```powershell

@@ -1,9 +1,9 @@
 # Octane Fast Start
 
 [![Blender](https://img.shields.io/badge/Blender-5.3-orange?logo=blender&logoColor=white)](https://www.blender.org/download/)
-[![Release](https://img.shields.io/badge/release-v1.0.0-blue)](https://github.com/mttfntn/octane-fast-startup-blender/releases)
+[![Release](https://img.shields.io/github/v/release/mttfntn/octane-fast-startup-blender)](https://github.com/mttfntn/octane-fast-startup-blender/releases/latest)
 [![tests](https://github.com/mttfntn/octane-fast-startup-blender/actions/workflows/tests.yml/badge.svg)](https://github.com/mttfntn/octane-fast-startup-blender/actions/workflows/tests.yml)
-[![License](https://img.shields.io/badge/license-GPL--3.0--or--later-green)](LICENSE)
+[![License](https://img.shields.io/github/license/mttfntn/octane-fast-startup-blender)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.13-blue?logo=python&logoColor=white)](startup/octane_fast_start.py)
 [![Works with](https://img.shields.io/badge/works%20with-OctaneRender%20for%20Blender%20(OTOY)-lightgrey)](https://home.otoy.com/render/octane-render/)
 
